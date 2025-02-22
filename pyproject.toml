@@ -51,7 +51,7 @@ dependencies = [
     "wandb",
     "tensorflow", #==2.18.0
     "tensorflow_datasets", #==4.9.3",
-    "tensorflow_graphics==2021.12.3",
+    "tensorflow_graphics==2024.10.25",
     #"dlimp @ git+https://github.com/moojink/dlimp_openvla"
 ]
 
