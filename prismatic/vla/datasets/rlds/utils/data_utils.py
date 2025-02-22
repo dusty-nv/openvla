@@ -6,7 +6,6 @@ Additional RLDS-specific data utilities.
 
 import hashlib
 import json
-import copy
 import os
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -274,19 +273,22 @@ def get_dataset_statistics(
 
 def save_dataset_statistics(dataset_statistics, run_dir):
     """Saves a `dataset_statistics.json` file."""
-    dataset_statistics = copy.deepcopy(dataset_statistics)
     out_path = run_dir / "dataset_statistics.json"
     with open(out_path, "w") as f_json:
         for _, stats in dataset_statistics.items():
             for k in stats["action"].keys():
-                stats["action"][k] = stats["action"][k].tolist()
+                if isinstance(stats["action"][k], np.ndarray):
+                    stats["action"][k] = stats["action"][k].tolist()
             if "proprio" in stats:
                 for k in stats["proprio"].keys():
-                    stats["proprio"][k] = stats["proprio"][k].tolist()
+                    if isinstance(stats["proprio"][k], np.ndarray):
+                        stats["proprio"][k] = stats["proprio"][k].tolist()
             if "num_trajectories" in stats:
-                stats["num_trajectories"] = stats["num_trajectories"].item()
+                if isinstance(stats["num_trajectories"], np.ndarray):
+                    stats["num_trajectories"] = stats["num_trajectories"].item()
             if "num_transitions" in stats:
-                stats["num_transitions"] = stats["num_transitions"].item()
+                if isinstance(stats["num_transitions"], np.ndarray):
+                    stats["num_transitions"] = stats["num_transitions"].item()
         json.dump(dataset_statistics, f_json, indent=2)
     overwatch.info(f"Saved dataset statistics file at path {out_path}")
 
@@ -326,38 +328,3 @@ def allocate_threads(n: Optional[int], weights: np.ndarray):
         allocation[i] += 1
 
     return allocation
-    
-    
-class AttributeDict(dict):
-    """
-    A dict where keys are available as attributes:
-    
-      https://stackoverflow.com/a/14620633
-      
-    So you can do things like:
-    
-      x = AttributeDict(a=1, b=2, c=3)
-      x.d = x.c - x['b']
-      x['e'] = 'abc'
-      
-    This is using the __getattr__ / __setattr__ implementation
-    (as opposed to the more concise original commented out below)
-    because of memory leaks encountered without it:
-    
-      https://bugs.python.org/issue1469629
-    """
-    def __init__(self, *args, **kwargs):
-        dict.__init__(self, *args, **kwargs)
-
-    def __getattr__(self, key):
-        return self[key]
-
-    def __setattr__(self, key, value):
-        self[key] = value
-
-    def __getstate__(self):
-        return self.__dict__
-
-    def __setstate__(self, value):
-        self.__dict__ = value
-        

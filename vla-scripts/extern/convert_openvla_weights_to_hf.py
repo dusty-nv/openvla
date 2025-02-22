@@ -120,23 +120,8 @@ def convert_openvla_weights_to_hf(cfg: HFConvertConfig) -> None:
     print(f"[*] Converting OpenVLA Model `{cfg.openvla_model_path_or_id}` to HF Transformers Format")
     torch.set_default_dtype(torch.bfloat16)
 
-    # # Register AutoClasses
-    OpenVLAConfig.register_for_auto_class()
-    PrismaticImageProcessor.register_for_auto_class("AutoImageProcessor")
-    PrismaticProcessor.register_for_auto_class("AutoProcessor")
-    OpenVLAForActionPrediction.register_for_auto_class("AutoModelForVision2Seq")
-    
     # Get `config.json`, 'dataset_statistics.json' and `checkpoint_pt` -- mirrors logic in `prismatic.models.load.py`
-    if os.path.isfile(cfg.openvla_model_path_or_id):
-        print(f"[*] Loading from checkpoint `{(checkpoint_pt := Path(cfg.openvla_model_path_or_id))}`")
-        run_dir = checkpoint_pt.parents[1]
-        config_json = run_dir / "config.json"
-        dataset_statistics_json = run_dir / "dataset_statistics.json"
-
-        assert config_json.exists(), f"Missing `config.json` for `{run_dir = }`"
-        assert checkpoint_pt.exists(), f"Missing checkpoint for `{run_dir = }`"
-        assert dataset_statistics_json.exists(), f"Missing `dataset_statistics.json` for `{run_dir = }`"
-    elif os.path.isdir(cfg.openvla_model_path_or_id):
+    if os.path.isdir(cfg.openvla_model_path_or_id):
         print(f"[*] Loading from Local Path `{(run_dir := Path(cfg.openvla_model_path_or_id))}`")
         config_json, checkpoint_pt = run_dir / "config.json", run_dir / "checkpoints" / "latest-checkpoint.pt"
         dataset_statistics_json = run_dir / "dataset_statistics.json"
@@ -246,13 +231,11 @@ def convert_openvla_weights_to_hf(cfg: HFConvertConfig) -> None:
     )
 
     # Create PrismaticForConditionalGeneration =>> Note that we can't initialize on `meta` device because TIMM
-    print("[*] Building (Randomly Initialized) HF Model => OpenVLAForActionPrediction")
+    print("[*] Building (Randomly Initialized) Model =>> OpenVLAForActionPrediction")
     hf_model = OpenVLAForActionPrediction(hf_config)
-    
-    print("[*] Applying VLM State Dictionary to HF Model")
     hf_model.load_state_dict(converted_state_dict, strict=True, assign=True)
 
-    print("[*] Converting model weights to bfloat16")
+    # Cast Model to BF16 before Saving
     hf_model.to(torch.bfloat16)
 
     # Save Pretrained Versions to Local Path

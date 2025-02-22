@@ -56,11 +56,12 @@ class OpenVLA(PrismaticVLM):
         # Prepare Inputs
         input_ids = tokenizer(prompt_text, truncation=True, return_tensors="pt").input_ids.to(self.device)
         if isinstance(tokenizer, LlamaTokenizerFast):
-            # Note: We need to add this special empty token ('') after the colon (':') token in "ASSISTANT:"
-            #       in order for the predictions to match the training configuration and be accurate.
-            input_ids = torch.cat(
-                (input_ids, torch.unsqueeze(torch.Tensor([29871]).long(), dim=0).to(self.device)), dim=1
-            )
+            # If the special empty token ('') does not already appear after the colon (':') token in the prompt
+            # (after "OUT:" or "ASSISTANT:"), insert it to match the inputs seen at training time
+            if not torch.all(input_ids[:, -1] == 29871):
+                input_ids = torch.cat(
+                    (input_ids, torch.unsqueeze(torch.Tensor([29871]).long(), dim=0).to(input_ids.device)), dim=1
+                )
         else:
             raise ValueError(f"Unsupported `tokenizer` type = {type(tokenizer)}")
 

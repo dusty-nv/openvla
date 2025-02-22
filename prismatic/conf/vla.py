@@ -8,7 +8,6 @@ model configuration thereof. A given VLA model (`policy`) configures the followi
     - VLA Model Architecture / Parameters (e.g., freeze vision encoder, last layer finetuning)
     - Training / Optimization Hyperparameters
 """
-import os
 
 from dataclasses import dataclass
 from enum import Enum, unique
@@ -108,7 +107,7 @@ class Exp_DinoSigLIP_224px_Bridge(Exp_SigLIP_224px_Bridge):
 
     data_mix: str = "bridge"
 
-    
+
 # = [64 GPU] SigLIP 224px + OXE Magic Soup =
 @dataclass
 class Exp_SigLIP_224px_OXE_Magic_Soup(Exp_SigLIP_224px_Bridge):
@@ -199,28 +198,13 @@ class Exp_SigLIP_224px_Droid_Wipe(Exp_SigLIP_224px_Bridge):
     data_mix: str = "droid_wipe"
 
 
-# = [N GPU] Fine-tuning + custom dataset
-@dataclass
-class Exp_DinoSigLIP_224px_FT(Exp_SigLIP_224px_Bridge):
-    vla_id: str = "prism-dinosiglip-224px+ft"
-    base_vlm: Union[str, Path] = "prism-dinosiglip-224px+7b"
-    data_mix: str = None
-    expected_world_size: int = None
-
-    #expected_world_size: int = 8
-    #global_batch_size: int = 256
-    #per_device_batch_size: int = 32
-    #shuffle_buffer_size: int = 256_000
-    
-    
 # === Define a VLA Registry Enum for Reference & Validation ===
 @unique
 class VLARegistry(Enum):
     # Sanity Check Configurations =>> BridgeV2
     SIGLIP_224PX_MX_BRIDGE = Exp_SigLIP_224px_Bridge
     DINOSIGLIP_224PX_MX_BRIDGE = Exp_DinoSigLIP_224px_Bridge
-    DINOSIGLIP_224PX_FT = Exp_DinoSigLIP_224px_FT
-    
+
     # SigLIP Frozen Backbone Experiment
     FREEZE_SIGLIP_224PX_MX_BRIDGE = Exp_FreezeVIT_SigLIP_224px_Bridge
 

@@ -3,7 +3,7 @@
 from typing import Any, Dict
 
 import tensorflow as tf
-#import tensorflow_graphics.geometry.transformation as tfg
+import tensorflow_graphics.geometry.transformation as tfg
 
 
 def rmat_to_euler(rot_mat):

@@ -3,15 +3,11 @@ action_tokenizer.py
 
 Extension class; wraps base LLM/VLM tokenizer with logic to discretize and tokenize continuous robot actions.
 """
-import numpy as np
 
 from typing import List, Union
 
+import numpy as np
 from transformers import PreTrainedTokenizerBase
-from prismatic.overwatch import initialize_overwatch
-
-# Initialize Overwatch =>> Wraps `logging.Logger`
-overwatch = initialize_overwatch(__name__)
 
 
 class ActionTokenizer:
@@ -38,8 +34,6 @@ class ActionTokenizer:
         # [Contract] Set "action_token_begin_idx" based on `self.tokenizer.vocab_size - (self.n_bins + 1)`
         #   =>> Assumes we're always overwriting the final `n_bins` tokens of the vocabulary!
         self.action_token_begin_idx: int = int(self.tokenizer.vocab_size - (self.n_bins + 1))
-        
-        overwatch.info(f"ActionTokenizer - bins={bins} vocab_size=self.tokenizer.vocab_size action_begin={self.action_token_begin_idx}")
 
     def __call__(self, action: np.ndarray) -> Union[str, List[str]]:
         """Clip & bin actions to *the last `n_bins` tokens* of the vocabulary (e.g., tokenizer.vocab[-256:])."""

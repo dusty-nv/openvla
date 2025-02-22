@@ -506,37 +506,25 @@ class OpenVLAForActionPrediction(PrismaticForConditionalGeneration):
     def predict_action(
         self, input_ids: Optional[torch.LongTensor] = None, unnorm_key: Optional[str] = None, **kwargs: str
     ) -> np.ndarray:
-        """Thin wrapper around super().generate() that decodes predicted actions and de-normalizes them."""
+        """Thin wrapper around .generate() that decodes predicted actions and unnormalizes them."""
+        # If the special empty token ('') does not already appear after the colon (':') token in the prompt
+        # (after "OUT:" or "ASSISTANT:"), insert it to match the inputs seen at training time
+        if not torch.all(input_ids[:, -1] == 29871):
+            input_ids = torch.cat(
+                (input_ids, torch.unsqueeze(torch.Tensor([29871]).long(), dim=0).to(input_ids.device)), dim=1
+            )
 
-        # We need to add this special empty token ('') after the colon (':') token in "ASSISTANT:"
-        # in order for the predictions to match the training configuration and be accurate.
-        input_ids = torch.cat(
-            (input_ids, torch.unsqueeze(torch.Tensor([29871]).long(), dim=0).to(input_ids.device)), dim=1
-        )
-
-        if isinstance(unnorm_key, str):
-            if unnorm_key == 'normalized':
-                unnorm_key = None
-            else:
-                action_norm_stats = self.get_action_stats(unnorm_key)
-        elif isinstance(unnorm_key, dict):
-            action_norm_stats = unnorm_key
-
-        num_actions = len(action_norm_stats["q01"]) if unnorm_key else 7
-        
         # Run VLA inference
-        generated_ids = self.generate(input_ids, max_new_tokens=num_actions, **kwargs)
+        generated_ids = self.generate(input_ids, max_new_tokens=self.get_action_dim(unnorm_key), **kwargs)
 
         # Extract predicted action tokens and translate into (normalized) continuous actions
-        predicted_action_token_ids = generated_ids[0, -num_actions :].cpu().numpy()
+        predicted_action_token_ids = generated_ids[0, -self.get_action_dim(unnorm_key) :].cpu().numpy()
         discretized_actions = self.vocab_size - predicted_action_token_ids
         discretized_actions = np.clip(discretized_actions - 1, a_min=0, a_max=self.bin_centers.shape[0] - 1)
         normalized_actions = self.bin_centers[discretized_actions]
 
-        if not unnorm_key:
-            return normalized_actions
-            
         # Unnormalize actions
+        action_norm_stats = self.get_action_stats(unnorm_key)
         mask = action_norm_stats.get("mask", np.ones_like(action_norm_stats["q01"], dtype=bool))
         action_high, action_low = np.array(action_norm_stats["q99"]), np.array(action_norm_stats["q01"])
         actions = np.where(
@@ -549,21 +537,18 @@ class OpenVLAForActionPrediction(PrismaticForConditionalGeneration):
 
     @staticmethod
     def _check_unnorm_key(norm_stats: Dict[str, Dict[str, Any]], unnorm_key: Optional[str]) -> str:
-        if unnorm_key is None and len(norm_stats) != 1:
-            raise ValueError(
-                f"Your model was trained on more than one dataset. "
-                f"Please pass a `unnorm_key` from the following options to choose the statistics used for "
-                f"de-normalizing actions: {norm_stats.keys()}"
+        if unnorm_key is None:
+            assert len(norm_stats) == 1, (
+                f"Your model was trained on more than one dataset, "
+                f"please pass a `unnorm_key` from the following options to choose the statistics "
+                f"used for un-normalizing actions: {norm_stats.keys()}"
             )
+            unnorm_key = next(iter(norm_stats.keys()))
 
-        # If None, grab the (singular) dataset in `norm_stats` to use as `unnorm_key`
-        unnorm_key = unnorm_key if unnorm_key is not None else next(iter(norm_stats.keys()))
-        if unnorm_key not in norm_stats:
-            raise ValueError(
-                f"The `unnorm_key` you chose ({unnorm_key = }) is not in the available statistics. "
-                f"Please choose from: {norm_stats.keys()}"
-            )
-
+        assert unnorm_key in norm_stats, (
+            f"The `unnorm_key` you chose is not in the set of available dataset statistics, "
+            f"please choose from: {norm_stats.keys()}"
+        )
         return unnorm_key
 
     def get_action_dim(self, unnorm_key: Optional[str] = None) -> int:

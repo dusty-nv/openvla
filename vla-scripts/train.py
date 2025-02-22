@@ -20,9 +20,7 @@ import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from pprint import pformat
 from typing import Optional, Tuple, Union
-from copy import deepcopy
 
 import draccus
 import torch
@@ -36,10 +34,6 @@ from prismatic.training import VLAMetrics, get_train_strategy
 from prismatic.util import set_global_seed
 from prismatic.vla import get_vla_dataset_and_collator
 from prismatic.vla.datasets.rlds.utils.data_utils import save_dataset_statistics
-
-from prismatic.vla.datasets.rlds.oxe.configs import OXE_DATASET_CONFIGS
-from prismatic.vla.datasets.rlds.oxe.transforms import OXE_STANDARDIZATION_TRANSFORMS, rlds_dataset_builder_transform
-
 
 # Sane Defaults
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -59,8 +53,9 @@ class TrainConfig:
     )
 
     # Directory Paths
-    data_root_dir: Path = Path("datasets/open-x-embodiment")        # Path to Open-X dataset directory
-    dataset_name: str = "droid_wipe"                                # Name of fine-tuning dataset (e.g., `droid_wipe`)
+    data_root_dir: Path = Path(                                     # Path to Open-X dataset directory
+        "datasets/open-x-embodiment"
+    )
     run_root_dir: Path = Path("runs")                               # Path to directory to store logs & checkpoints
 
     # Resume Run Parameters
@@ -100,17 +95,10 @@ class TrainConfig:
 
         self.train_strategy = self.vla.train_strategy
 
-        if not self.vla.data_mix:
-            self.vla.data_mix = self.dataset_name
-        
-        if not self.vla.expected_world_size:
-            self.vla.expected_world_size = overwatch.world_size()
-            
         # [Validate] Assert on `expected_world_size`
-        if self.vla.expected_world_size:
-            assert (
-                self.vla.expected_world_size == overwatch.world_size()
-            ), f"Expected World Size = {self.vla.expected_world_size} but Found {overwatch.world_size()} GPUs!"
+        assert (
+            self.vla.expected_world_size == overwatch.world_size()
+        ), f"Expected World Size = {self.vla.expected_world_size} but Found {overwatch.world_size()} GPUs!"
 
     # fmt: on
 
@@ -118,8 +106,7 @@ class TrainConfig:
 @draccus.wrap()
 def train(cfg: TrainConfig) -> None:
     overwatch.info("OpenVLA Training :: Warming Up")
-    overwatch.info(pformat(cfg, indent=2))
-    
+
     # Note => Under `torchrun` initializing `overwatch` will automatically set up `torch.distributed`
     torch.cuda.set_device(device_id := overwatch.local_rank())
     torch.cuda.empty_cache()
@@ -127,7 +114,7 @@ def train(cfg: TrainConfig) -> None:
     # Configure Unique Run Name & Save Directory
     vla_id = cfg.vla.vla_id
     cfg.run_id = (
-        f"{vla_id}+{cfg.dataset_name}+n{cfg.vla.expected_world_size // 8}+b{cfg.per_device_batch_size}+x{cfg.seed}"
+        f"{vla_id}+n{cfg.vla.expected_world_size // 8}+b{cfg.per_device_batch_size}+x{cfg.seed}"
         if cfg.run_id is None
         else cfg.run_id
     )
@@ -200,15 +187,7 @@ def train(cfg: TrainConfig) -> None:
     )
 
     # Get VLA Dataset & Collator
-    overwatch.info(f"Creating VLA Dataset {cfg.dataset_name} with Mixture `{cfg.vla.data_mix}`")
-    
-    if cfg.dataset_name not in OXE_DATASET_CONFIGS:
-        data_cfg = deepcopy(OXE_DATASET_CONFIGS['rlds_dataset_builder'])
-        OXE_DATASET_CONFIGS[cfg.dataset_name] = data_cfg
-        
-    if cfg.dataset_name not in OXE_STANDARDIZATION_TRANSFORMS:
-        OXE_STANDARDIZATION_TRANSFORMS[cfg.dataset_name] = rlds_dataset_builder_transform
-        
+    overwatch.info(f"Creating VLA Open-X Dataset with Mixture `{cfg.vla.data_mix}`")
     vla_dataset, action_tokenizer, collator = get_vla_dataset_and_collator(
         cfg.data_root_dir,
         cfg.vla.data_mix,

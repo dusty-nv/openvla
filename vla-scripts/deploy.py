@@ -92,7 +92,7 @@ class OpenVLAServer:
         try:
             if double_encode := "encoded" in payload:
                 # Support cases where `json_numpy` is hard to install, and numpy arrays are "double-encoded" as strings
-                assert len(payload.keys() == 1), "Only uses encoded payload!"
+                assert len(payload.keys()) == 1, "Only uses encoded payload!"
                 payload = json.loads(payload["encoded"])
 
             # Parse payload components
