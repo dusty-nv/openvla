@@ -44,7 +44,7 @@ dependencies = [
     "sentencepiece==0.1.99",
     "timm==0.9.10",
     "tokenizers==0.19.1",
-    "torch==2.2.0",
+    "torch", #==2.2.0",
     "torchvision>=0.16.0",
     "torchaudio",
     "transformers==4.40.1",
@@ -52,7 +52,7 @@ dependencies = [
     "tensorflow",#"tensorflow==2.15.0",
     "tensorflow_datasets", #==4.9.3",
     #"tensorflow_graphics==2021.12.3",
-    "dlimp @ git+https://github.com/moojink/dlimp_openvla"
+    #"dlimp @ git+https://github.com/moojink/dlimp_openvla"
 ]
 
 [project.optional-dependencies]
