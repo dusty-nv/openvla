@@ -42,7 +42,7 @@ dependencies = [
     "protobuf",
     "rich",
     "sentencepiece>=0.1.99",
-    "timm>=0.9.10",
+    "timm==0.9.16",
     "tokenizers>=0.19.1",
     "torch", #>=2.2.0",
     "torchvision>=0.17.0",
